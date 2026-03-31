@@ -8,6 +8,14 @@ description: >
   Trigger on phrases like "add a task", "what's due today", "create a project
   in Vikunja", "assign this to me", "set a reminder", or any mention of
   Vikunja task management.
+metadata:
+  openclaw:
+    requires:
+      env:
+        - VIKUNJA_BASE_URL
+        - VIKUNJA_API_TOKEN
+    primaryEnv: VIKUNJA_API_TOKEN
+    homepage: https://github.com/seergs/vikunja-skill
 ---
 
 # Vikunja Skill

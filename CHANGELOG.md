@@ -3,6 +3,12 @@
 All notable changes to this skill will be documented here.
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-03-31
+
+### Fixed
+- Declare VIKUNJA_BASE_URL and VIKUNJA_API_TOKEN in skill metadata
+- Add homepage to skill metadata for provenance
+
 ## [1.0.0] - 2026-03-31
 
 ### Added
