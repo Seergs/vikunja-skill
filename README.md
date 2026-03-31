@@ -28,7 +28,7 @@ Set these environment variables in your OpenClaw agent:
 ## Installation
 
 ```bash
-npx clawhub@latest install vikunja
+npx clawhub@latest install vikunja-api
 ```
 
 Or manually copy the `vikunja/` folder into your OpenClaw skills directory
