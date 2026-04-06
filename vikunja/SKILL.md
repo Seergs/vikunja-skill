@@ -108,6 +108,41 @@ See `references/endpoints.md` for the full endpoint reference.
 5. **Error handling.** On HTTP 4xx/5xx, surface the `message` field from the
    JSON response to the user. On 401, remind them to check `VIKUNJA_API_TOKEN`.
 
+### Safe task update — mandatory pattern
+
+> **Vikunja's POST /tasks/{id} resets fields to zero/null if they are absent
+> from the body** — including percent_done, due_date, start_date,
+> end_date, priority, hex_color, and description.
+
+**Always follow this pattern before updating any existing task:**
+
+1. GET /tasks/{id} — fetch current state
+2. Build update body by starting **from the full current object** and overriding
+    only the fields you intend to change
+3. Always preserve these fields from the GET response (even if not changing them):
+    - description
+    - done
+    - done_at
+    - due_date
+    - reminders
+    - repeat_after / repeat_mode
+    - priority
+    - start_date
+    - end_date
+    - assignees
+    - hex_color
+    - percent_done
+    - cover_image_attachment_id
+    - is_favorite
+
+    > See: https://github.com/go-vikunja/vikunja/issues/1459
+
+4. POST /tasks/{id} with the merged body
+
+**Never send a partial update body without first reading the task.**
+This applies when bulk-updating multiple tasks too: GET each one individually
+before POSTing.
+
 ## Example interactions
 
 - "What tasks are due this week?" → GET /tasks/all with filter, format results
