@@ -3,6 +3,14 @@
 All notable changes to this skill will be documented here.
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-04-05
+
+### Fixed
+- Correct clawhub installation command
+
+### Added
+- Tasks: task relations
+
 ## [1.0.1] - 2026-03-31
 
 ### Fixed
