@@ -6,7 +6,7 @@ An [OpenClaw](https://openclaw.ai) skill for interacting with a
 ## Features
 
 - **Projects** — list, get, create
-- **Tasks** — list, get, create, update, mark done, delete
+- **Tasks** — list, get, create, update, mark done, delete, relations
 - **Labels** — list, create, add/remove on tasks
 - **Assignees** — add/remove users on tasks
 - **Reminders** — absolute datetime or relative to due/start/end date
