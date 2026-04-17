@@ -108,6 +108,84 @@ See `references/endpoints.md` for the full endpoint reference.
 5. **Error handling.** On HTTP 4xx/5xx, surface the `message` field from the
    JSON response to the user. On 401, remind them to check `VIKUNJA_API_TOKEN`.
 
+## Smart task creation
+
+When the user asks to create a task, follow this enrichment workflow before
+making any write requests.
+
+### Step 1 — Gather context (parallel where possible)
+
+- Resolve project name → ID (GET /projects if needed)
+- GET /projects/{projectID}/tasks?per_page=50 — fetch existing tasks so you
+  can spot related work, naming conventions, and priority patterns
+- GET /labels?per_page=50 — fetch available labels so you can suggest matching ones
+
+### Step 2 — Infer task fields
+
+Using the user's request and the context collected above, reason about:
+
+| Field | How to infer |
+|---|---|
+| **title** | Clean, imperative phrasing. Extract from the request. |
+| **description** | Only if the task is non-trivial. Write a short summary and, where applicable, a markdown checklist (`- [ ] step`) for action items. |
+| **priority** | Match signal words: "urgent"/"asap"/"critical" → 4-5; "important"/"soon" → 3; "when you can"/"low" → 1; otherwise leave at 0 (none). |
+| **labels** | Match against existing labels by keyword similarity. Never create new labels silently — propose only existing ones. |
+| **due_date** | Parse explicit deadlines/dates in the request ("due Friday", "by end of month"). Convert to UTC ISO-8601. If ambiguous (e.g. "soon"), ask the user rather than guessing. |
+| **start_date** | Set only when the user explicitly mentions a start date or "beginning on X". Do not infer from context alone — if it seems relevant but wasn't stated, ask. |
+| **relations** | Scan existing tasks for titles or IDs mentioned in the request. Infer relation kind: "after X" → `follows`, "before X" → `precedes`, "part of X" → `subtask`, "blocks X" → `blocking`, "related to X" → `related`. |
+
+**Simplicity rule:** If the request is a single, unambiguous action with no
+implied context (e.g. "add a task called 'Buy milk'"), skip enrichment entirely
+and create the task with just the title. Do not over-engineer simple requests.
+
+### Step 3 — Confirm if enriched
+
+If you inferred **any** of the following beyond the raw title, present a
+structured proposal and ask the user to confirm or adjust before creating:
+
+- a non-empty description
+- a priority > 0
+- one or more labels
+- a due date or start date
+- any relations
+
+Present the proposal in this format:
+
+```
+**New task proposal**
+Title: <title>
+Project: <project name>
+Priority: <level or none>
+Start: <date or none>
+Due: <date or none>
+Labels: <list or none>
+Relations: <list or none>
+Description:
+<description or none>
+
+Shall I create it as above, or would you like to change anything?
+```
+
+**Date rules:**
+- If the user gives an explicit date → parse and include it, no need to ask.
+- If the user uses vague time language ("soon", "eventually") → ask for a
+  concrete date rather than guessing. Do not silently skip if context strongly
+  implies urgency.
+- If no date is mentioned and context doesn't call for one → omit both fields.
+
+If the user confirms (or the task is simple and no confirmation is needed),
+proceed to Step 4.
+
+### Step 4 — Create and apply
+
+1. PUT /projects/{projectID}/tasks — with title, description, priority,
+   due_date, and `related_tasks` inline (for relations to existing tasks)
+2. For each confirmed label: PUT /tasks/{newTaskID}/labels with `{"label_id": N}`
+3. Report back: task title, its assigned ID/index, and a link if possible.
+
+> **Labels cannot be set during creation** — they must be applied via separate
+> PUT /tasks/{id}/labels calls after the task is created.
+
 ### Safe task update — mandatory pattern
 
 > **Vikunja's POST /tasks/{id} resets fields to zero/null if they are absent
@@ -146,11 +224,30 @@ before POSTing.
 ## Example interactions
 
 - "What tasks are due this week?" → GET /tasks/all with filter, format results
-- "Create a task 'Deploy new release' in my Homelab project due Friday" → resolve
-  project ID, then PUT /projects/{id}/tasks
 - "Mark task 42 as done" → POST /tasks/42 with `{"done": true}`
 - "Add the 'urgent' label to task 17" → resolve label ID, PUT /tasks/17/labels
 - "Assign me to task 5" → look up current user via GET /user, PUT /tasks/5/assignees
 - "Set a reminder for task 8 in 2 hours" → compute absolute datetime, POST /tasks/8
+
+### Smart creation examples
+
+- "Add a task called 'Buy milk' to Errands" → simple, no enrichment needed.
+  Create directly with just the title.
+
+- "In the Backend project add a task to migrate the auth service to JWT" →
+  Fetch project tasks + labels. Notice existing auth-related tasks. Infer:
+  title "Migrate auth service to JWT", description with checklist (design
+  schema, update endpoints, write tests, update docs), priority medium (no
+  urgency signal), labels matching "backend"/"auth" if available. Present
+  proposal, wait for confirmation, then create + apply labels.
+
+- "Add an urgent task in DevOps to fix the broken CI pipeline, it's blocking
+  the release" → priority = urgent (5), infer relation `blocking` to any
+  release-related task found in the project. Include a short description.
+  Present proposal for confirmation before creating.
+
+- "Create a task for next week Monday to review Q2 roadmap in Planning" →
+  Parse "next week Monday" → set due_date. No start_date implied. If labels
+  like "review" or "planning" exist, suggest them. Present proposal.
 
 Read `references/endpoints.md` for exact request/response shapes.
